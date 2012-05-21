@@ -27,7 +27,9 @@ class Redis
         begin
           # Dispatch the command to Redis
           return @redis.send(command, *args, &block)
-        rescue Errno::ECONNREFUSED
+        rescue Errno::ECONNREFUSED, Timeout::Error, SystemCallError, RuntimeError => e
+          # also retries, when you have a failover scenario and the to-be-master has not yet taken over
+          raise e if e.is_a? RuntimeError and not e.to_s.start_with? "ERR link with MASTER is down and slave-serve-stale-data is set to no"
           try += 1
           sleep @wait
         end
